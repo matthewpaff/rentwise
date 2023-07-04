@@ -41,3 +41,15 @@ def validate_fees(fees, currency='USD'):
             raise ValueError('Fee source must be text of at most 2000 characters')
         result.append({**fee, 'amount': None if fee.get('amount') is None else cents(amount(fee['amount'])), 'required':fee.get('required',True),'refundable':fee.get('refundable',False)})
     return result
+
+def fee_totals(fees, months=12, include_optional=False):
+    if type(months) is not int or not 1 <= months <= 60:
+        raise ValueError('months must be an integer from 1 to 60')
+    if type(include_optional) is not bool:
+        raise ValueError('include_optional must be boolean')
+    fees = validate_fees(fees)
+    included = [f for f in fees if f['required'] or include_optional]
+    monthly = sum((amount(f['amount']) for f in included if f['cadence']=='monthly' and f['amount'] is not None), Decimal(0))
+    upfront = sum((amount(f['amount']) for f in included if f['cadence']=='once' and f['amount'] is not None), Decimal(0))
+    unknown = [f['label'] for f in included if f['amount'] is None]
+    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(monthly*months+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
