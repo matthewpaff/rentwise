@@ -42,7 +42,24 @@ def validate_fees(fees, currency='USD'):
         result.append({**fee, 'amount': None if fee.get('amount') is None else cents(amount(fee['amount'])), 'required':fee.get('required',True),'refundable':fee.get('refundable',False)})
     return result
 
-def fee_totals(fees, months=12, include_optional=False):
+def validate_credits(credits):
+    if not isinstance(credits,list) or len(credits)>20:
+        raise ValueError('credits must be an array of at most 20 items')
+    normalized=[]
+    for credit in credits:
+        if not isinstance(credit,dict) or set(credit)-{'label','amount','minimum_months','source'}:
+            raise ValueError('Invalid credit fields')
+        if not isinstance(credit.get('label'),str) or not 1<=len(credit['label'].strip())<=200:
+            raise ValueError('Credit label is required')
+        minimum=credit.get('minimum_months',1)
+        if type(minimum) is not int or not 1<=minimum<=60:
+            raise ValueError('Credit minimum_months must be 1–60')
+        if not isinstance(credit.get('source',''),str) or len(credit.get('source',''))>2000:
+            raise ValueError('Invalid credit source')
+        normalized.append({**credit,'amount':cents(amount(credit.get('amount'))),'minimum_months':minimum})
+    return normalized
+
+def fee_totals(fees, months=12, include_optional=False, credits=None):
     if type(months) is not int or not 1 <= months <= 60:
         raise ValueError('months must be an integer from 1 to 60')
     if type(include_optional) is not bool:
@@ -54,4 +71,9 @@ def fee_totals(fees, months=12, include_optional=False):
     unknown = [f['label'] for f in included if f['amount'] is None]
     deposits = sum((amount(f['amount']) for f in included if f['refundable'] and f['amount'] is not None), Decimal(0))
     total = monthly*months+upfront-deposits
-    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(total),'cash_outlay':cents(total+deposits),'refundable_deposits':cents(deposits),'move_in_cash':cents(monthly+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
+    eligible = [c for c in validate_credits(credits or []) if months>=c['minimum_months']]
+    credit_total = sum((amount(c['amount']) for c in eligible),Decimal(0))
+    if credit_total>total:
+        raise ValueError('Eligible credits cannot exceed known nonrefundable lease cost')
+    total -= credit_total
+    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(total),'cash_outlay':cents(total+deposits),'credits_applied':eligible,'credit_total':cents(credit_total),'refundable_deposits':cents(deposits),'move_in_cash':cents(monthly+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
