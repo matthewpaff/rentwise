@@ -76,4 +76,5 @@ def fee_totals(fees, months=12, include_optional=False, credits=None):
     if credit_total>total:
         raise ValueError('Eligible credits cannot exceed known nonrefundable lease cost')
     total -= credit_total
-    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(total),'cash_outlay':cents(total+deposits),'credits_applied':eligible,'credit_total':cents(credit_total),'refundable_deposits':cents(deposits),'move_in_cash':cents(monthly+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
+    explanation=f'{cents(monthly)} monthly × {months} months + {cents(upfront-deposits)} nonrefundable upfront − {cents(credit_total)} eligible credits = {cents(total)} known lease expense.'
+    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(total),'effective_monthly':cents(total/Decimal(months)),'explanation':explanation,'cash_outlay':cents(total+deposits),'credits_applied':eligible,'credit_total':cents(credit_total),'refundable_deposits':cents(deposits),'move_in_cash':cents(monthly+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
