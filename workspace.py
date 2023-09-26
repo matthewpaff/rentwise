@@ -37,3 +37,25 @@ class Workspace:
         try:
             with db:yield db
         finally:db.close()
+
+    def create_collection(self,name,listings,provenance):
+        name=text(name,'Collection name')
+        provenance=text(provenance,'Import provenance',2000)
+        listings=corpus(listings)
+        key=uuid.uuid4().hex
+        now=self.clock()
+        with self.connect() as db:
+            db.execute('INSERT INTO collections(id,name,created) VALUES(?,?,?)',(key,name,now))
+            db.execute('INSERT INTO collection_versions VALUES(?,?,?,?,?)',(key,1,now,provenance,json.dumps(listings)))
+        return self.collection(key)
+
+    def collection(self,key,version=None):
+        key=text(key,'Collection ID')
+        if version is not None and (type(version) is not int or version<1):
+            raise ValueError('Version must be a positive integer')
+        with self.connect() as db:
+            metadata=db.execute('SELECT * FROM collections WHERE id=?',(key,)).fetchone()
+            if not metadata:raise ValueError('Unknown collection')
+            row=db.execute('SELECT * FROM collection_versions WHERE collection_id=? AND (? IS NULL OR version=?) ORDER BY version DESC LIMIT 1',(key,version,version)).fetchone()
+            if not row:raise ValueError('Unknown collection version')
+        return {**dict(metadata),'version':row['version'],'version_created':row['created'],'provenance':row['provenance'],'listings':json.loads(row['listings'])}
