@@ -78,6 +78,7 @@ class BookingStore:
         self.path, self.clock = str(path), clock
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS bookings (key TEXT PRIMARY KEY, listing TEXT NOT NULL, created REAL NOT NULL, status TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS booking_events (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_key TEXT NOT NULL, occurred REAL NOT NULL, previous_status TEXT, status TEXT NOT NULL, reason TEXT NOT NULL)')
 
     @contextmanager
     def connect(self):
@@ -94,7 +95,9 @@ class BookingStore:
         if not isinstance(key, str) or not 8 <= len(key) <= 100:
             raise ValueError('An idempotency key of 8–100 characters is required')
         with self.connect() as db:
-            db.execute('INSERT OR IGNORE INTO bookings VALUES (?, ?, ?, ?)', (key, listing, self.clock(), 'pending'))
+            created=db.execute('INSERT OR IGNORE INTO bookings VALUES (?, ?, ?, ?)', (key, listing, self.clock(), 'pending')).rowcount
+            if created:
+                db.execute('INSERT INTO booking_events(booking_key,occurred,previous_status,status,reason) VALUES(?,?,?,?,?)',(key,self.clock(),None,'pending','Explicit consent recorded; local simulation only'))
             row = db.execute('SELECT * FROM bookings WHERE key=?', (key,)).fetchone()
             if row[1] != listing:
                 raise ValueError('Idempotency key already belongs to another listing')
@@ -110,7 +113,27 @@ class BookingStore:
             # Simulate a delayed provider acknowledgement; no real external action.
             if row[3] == 'pending' and self.clock() - row[2] >= 5:
                 db.execute('UPDATE bookings SET status=? WHERE key=?', ('sandbox_confirmed', key))
+                db.execute('INSERT INTO booking_events(booking_key,occurred,previous_status,status,reason) VALUES(?,?,?,?,?)',(key,self.clock(),'pending','sandbox_confirmed','Simulated delayed acknowledgement'))
             row = db.execute('SELECT * FROM bookings WHERE key=?', (key,)).fetchone()
+        return self.serialize(row)
+
+    def history(self,limit=100):
+        if type(limit) is not int or not 1<=limit<=500:raise ValueError('History limit must be 1–500')
+        with self.connect() as db:
+            rows=db.execute('SELECT * FROM bookings ORDER BY created DESC,key LIMIT ?',(limit,)).fetchall()
+        return [self.serialize(row) for row in rows]
+
+    def events(self,key):
+        self.status(key)
+        with self.connect() as db:
+            rows=db.execute('SELECT occurred,previous_status,status,reason FROM booking_events WHERE booking_key=? ORDER BY id',(key,)).fetchall()
+        return [dict(zip(('occurred','previous_status','status','reason'),row)) for row in rows]
+
+    def status(self,key):
+        if not isinstance(key,str) or not 8<=len(key)<=100:raise ValueError('Invalid idempotency key')
+        with self.connect() as db:
+            row=db.execute('SELECT * FROM bookings WHERE key=?',(key,)).fetchone()
+        if not row:raise ValueError('Unknown sandbox booking')
         return self.serialize(row)
 
     def serialize(self, row):
