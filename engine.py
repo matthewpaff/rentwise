@@ -94,7 +94,12 @@ class BookingStore:
             raise ValueError('Explicit sandbox consent is required')
         if not isinstance(key, str) or not 8 <= len(key) <= 100:
             raise ValueError('An idempotency key of 8–100 characters is required')
+        if not isinstance(listing,str) or not 1<=len(listing)<=60:
+            raise ValueError('Invalid listing ID')
         with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing=db.execute('SELECT key FROM bookings WHERE listing=? AND status IN (?,?) AND key<>?',(listing,'pending','sandbox_confirmed',key)).fetchone()
+            if existing:raise ValueError('An active sandbox request already exists for this listing; inspect booking history')
             created=db.execute('INSERT OR IGNORE INTO bookings VALUES (?, ?, ?, ?)', (key, listing, self.clock(), 'pending')).rowcount
             if created:
                 db.execute('INSERT INTO booking_events(booking_key,occurred,previous_status,status,reason) VALUES(?,?,?,?,?)',(key,self.clock(),None,'pending','Explicit consent recorded; local simulation only'))
