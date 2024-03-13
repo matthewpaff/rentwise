@@ -65,6 +65,16 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
+            if path == '/api/collections/create':
+                return self.respond(200,local_workspace().create_collection(body.get('name'),body.get('listings'),body.get('provenance')))
+            if path == '/api/collections/load':
+                return self.respond(200,local_workspace().collection(body.get('id'),body.get('version')))
+            if path == '/api/collections/revise':
+                return self.respond(200,local_workspace().revise_collection(body.get('id'),body.get('listings'),body.get('provenance'),body.get('expected_version')))
+            if path == '/api/collections/versions':
+                return self.respond(200,{'versions':local_workspace().versions(body.get('id'))})
+            if path == '/api/collections/archive':
+                return self.respond(200,local_workspace().archive_collection(body.get('id'),body.get('archived',True)))
             if path == '/api/preferences':
                 if model is None:
                     return self.respond(503, {'error':'Local model disabled. Start with --ollama-model MODEL and run Ollama locally to opt in.'})
