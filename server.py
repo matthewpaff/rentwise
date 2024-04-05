@@ -65,6 +65,16 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
+            if path == '/api/searches/save':
+                return self.respond(200,local_workspace().save_search(body.get('name'),body.get('preferences')))
+            if path == '/api/searches/delete':
+                return self.respond(200,local_workspace().delete_search(body.get('id')))
+            if path == '/api/bookings/status':
+                return self.respond(200,store.status(body.get('key')))
+            if path == '/api/bookings/events':
+                return self.respond(200,{'events':store.events(body.get('key'))})
+            if path == '/api/bookings/cancel':
+                return self.respond(200,store.cancel(body.get('key'),body.get('consent')))
             if path == '/api/collections/create':
                 return self.respond(200,local_workspace().create_collection(body.get('name'),body.get('listings'),body.get('provenance')))
             if path == '/api/collections/load':
