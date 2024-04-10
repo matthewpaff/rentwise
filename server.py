@@ -65,6 +65,17 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
+            if path == '/api/export':
+                preferences=body.get('preferences',{})
+                result=evaluate(body.get('listings',LISTINGS),preferences)['results']
+                ids=body.get('ids')
+                if ids is not None:
+                    if not isinstance(ids,list) or not 1<=len(ids)<=50 or any(not isinstance(x,str) for x in ids):
+                        raise ValueError('ids must be an array of 1–50 listing IDs')
+                    if set(ids)-{x['id'] for x in result}:raise ValueError('Export selection contains unknown or filtered IDs')
+                    result=[x for x in result if x['id'] in ids]
+                format=body.get('format','json')
+                return self.respond(200,{'format':format,'content':comparison_export(result,format)})
             if path == '/api/searches/save':
                 return self.respond(200,local_workspace().save_search(body.get('name'),body.get('preferences')))
             if path == '/api/searches/delete':
