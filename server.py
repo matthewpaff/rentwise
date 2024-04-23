@@ -22,6 +22,15 @@ def local_workspace():
     return Workspace(store.path)
 
 class Handler(BaseHTTPRequestHandler):
+    def trusted_host(self):
+        port=self.server.server_port
+        allowed={f'127.0.0.1:{port}',f'localhost:{port}'}
+        if port==80:allowed.update({'127.0.0.1','localhost'})
+        if self.headers.get('Host') not in allowed:
+            self.respond(403,{'error':'Host must be this loopback server and port'})
+            return False
+        return True
+
     def respond(self, status, value, kind='application/json'):
         raw = json.dumps(value).encode() if kind == 'application/json' else value
         self.send_response(status)
@@ -34,6 +43,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_GET(self):
+        if not self.trusted_host():return
         path = urlsplit(self.path).path
         if path == '/api/health':
             return self.respond(200, {'status':'ok','sandbox':True,'model_enabled':model is not None})
@@ -52,6 +62,7 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(404, {'error': 'Route not found'})
 
     def do_POST(self):
+        if not self.trusted_host():return
         # Same-origin checks prevent browser cross-site actions against localhost.
         if self.headers.get('Origin') not in (None, 'http://' + self.headers.get('Host', '')):
             return self.respond(403, {'error': 'Same-origin requests only'})
