@@ -40,3 +40,10 @@ async function refreshSearches(){
  data.searches.forEach(s=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',s.name),el('small',JSON.stringify(s.preferences)));const buttons=el('div',undefined,'button-row');buttons.append(action('Apply filters',async()=>{await applyPreferences(s.preferences);message('Applied saved search: '+s.name);}),action('Delete',async()=>{await api('/api/searches/delete',{id:s.id});await refreshSearches();message('Saved search deleted.');}));row.append(buttons);searchList.append(row);});
 }
 refreshSearches().catch(e=>message(e.message));
+const exportButtons=el('div',undefined,'button-row');$('comparison').append(exportButtons);
+function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type}));const link=el('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+for(const format of ['json','csv'])exportButtons.append(action('Download comparison '+format.toUpperCase(),async()=>{
+ const ids=results.filter(x=>selected.has(x.id)).map(x=>x.id);if(!ids.length)throw new Error('Select at least one visible home to export.');
+ const payload={preferences:prefs(),ids,format};if(imported)payload.listings=imported;
+ const data=await api('/api/export',payload);download(data.content,format==='csv'?'text/csv;charset=utf-8':'application/json','rentwise-comparison.'+format);message('Downloaded source-cited '+format.toUpperCase()+' comparison. Unknown fees remain explicit.');
+}));
