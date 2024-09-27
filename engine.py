@@ -44,7 +44,8 @@ def validate_listing(item):
         # Compatibility totals are derived rather than trusted when components exist.
         def subtotal(cadence,required):
             return format(sum((money(f['amount']) for f in fees if f['amount'] is not None and f['cadence']==cadence and f['required']==required),money('0')),'.2f')
-        result.update(base=subtotal('monthly',True),required='0.00',optional=subtotal('monthly',False),upfront=format(sum((money(f['amount']) for f in fees if f['amount'] is not None and f['cadence']=='once'),money('0')),'.2f'),unknown=[f['label'] for f in fees if f['required'] and f['amount'] is None])
+        base=sum((money(f['amount']) for f in fees if f['id'] in ('rent','base') and f['required'] and f['cadence']=='monthly' and f['amount'] is not None),money('0'))
+        result.update(base=format(base,'.2f'),required=format(money(subtotal('monthly',True))-base,'.2f'),optional=subtotal('monthly',False),upfront=format(sum((money(f['amount']) for f in fees if f['amount'] is not None and f['cadence']=='once'),money('0')),'.2f'),unknown=[f['label'] for f in fees if f['required'] and f['amount'] is None])
         completeness=item.get('price_completeness','unspecified')
         if completeness not in ('complete','partial','unspecified'):
             raise ValueError('price_completeness must be complete, partial or unspecified')
