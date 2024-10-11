@@ -4,7 +4,14 @@ let samples=[], imported=null, results=[], selected=new Set(), bookingKey=null, 
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error || 'Request failed');return data;}
 function prefs(){return {budget:$('budget').value,kind:$('kind').value,months:Number($('months').value),optional:$('optional').checked,known_only:$('known').checked};}
-async function evaluate(){try{const payload=prefs();if(imported)payload.listings=imported;const response=await api('/api/evaluate',payload);results=response.results;$('notice').textContent='';render();}catch(e){$('notice').textContent=e.message;}}
+let evaluationSequence=0;
+async function evaluate(){
+ const sequence=++evaluationSequence;$('cards').setAttribute('aria-busy','true');$('notice').textContent='Evaluating known costs…';
+ try{const payload=prefs();if(imported)payload.listings=imported;const response=await api('/api/evaluate',payload);if(sequence!==evaluationSequence)return;results=response.results;
+ selected=new Set([...selected].filter(id=>results.some(x=>x.id===id)));$('notice').textContent=response.excluded.length+' homes excluded by your filters. Unknown charges are never treated as a final price.';render();
+ }catch(e){if(sequence===evaluationSequence)$('notice').textContent=e.message;}
+ finally{if(sequence===evaluationSequence)$('cards').setAttribute('aria-busy','false');}
+}
 function render(){
  $('count').replaceChildren(el('span',String(results.length)+' possibilities'));$('lowest').textContent=results.length?usd(Math.min(...results.map(x=>Number(x.cost.monthly))))+' /mo':'—';
  $('complete').textContent=results.filter(x=>x.cost.complete).length+' fully specified';$('cards').replaceChildren();
