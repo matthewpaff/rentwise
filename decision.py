@@ -30,6 +30,15 @@ def evaluate(listings,preferences=None,today=None):
         if age>30:warnings.append('Source observation is older than 30 days; recheck before acting')
         if age<0:warnings.append('Source observation is in the future; verify provenance')
         results.append({**item,'cost':cost,'warnings':warnings,'ranking':{'basis':'known lease expense ascending, then complete price, then listing ID','known_budget_headroom':format(budget-money(cost['monthly']),'.2f')}})
-    results.sort(key=lambda x:(Decimal(x['cost']['total']),not x['cost']['complete'],x['id']))
+    mode=preferences.get('sort','total')
+    def order(item):
+        cost=item['cost']
+        if mode=='monthly':primary=Decimal(cost['monthly'])
+        elif mode=='effective':primary=Decimal(cost['total'])/months
+        elif mode=='completeness':primary=not cost['complete']
+        else:primary=Decimal(cost['total'])
+        return primary,not cost['complete'],Decimal(cost['total']),item['id']
+    results.sort(key=order)
+    for item in results:item['ranking']['basis']={'total':'known lease expense','monthly':'known recurring monthly cost','effective':'exact effective monthly expense','completeness':'explicit price completeness'}[mode]+' ascending; deterministic price and ID tie-breaks'
     for rank,item in enumerate(results,1):item['ranking']['position']=rank
     return {'results':results,'excluded':excluded,'preferences':preferences,'method':'Deterministic Decimal arithmetic; unknown fees excluded and flagged. Ranking uses known lease expense, not a prediction of final price.'}

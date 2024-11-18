@@ -4,9 +4,11 @@ import urllib.request
 from engine import money
 
 def validate_preferences(value):
-    if not isinstance(value, dict) or set(value) - {'budget','kind','months','optional','known_only'}:
+    if not isinstance(value, dict) or set(value) - {'budget','kind','months','optional','known_only','sort'}:
         raise ValueError('Model must return only supported preference fields')
     result = dict(value)
+    if 'sort' in value and value['sort'] not in ('total','monthly','effective','completeness'):
+        raise ValueError('sort must be total, monthly, effective or completeness')
     if 'budget' in value:
         result['budget'] = format(money(value['budget']), '.2f')
     if 'kind' in value and value['kind'] not in ('all','room','whole'):

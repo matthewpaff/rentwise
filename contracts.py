@@ -2,7 +2,7 @@
 import json
 
 FIELDS={
- '/api/evaluate':{'listings','budget','kind','months','optional','known_only'},
+ '/api/evaluate':{'listings','budget','kind','months','optional','known_only','sort'},
  '/api/export':{'listings','preferences','ids','format'},
  '/api/book':{'listing','key','consent'}, '/api/reconcile':{'key'},
  '/api/preferences':{'text'}, '/api/searches/save':{'name','preferences'},
