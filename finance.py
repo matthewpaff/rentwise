@@ -71,7 +71,7 @@ def fee_totals(fees, months=12, include_optional=False, credits=None):
     unknown = [f['label'] for f in included if f['amount'] is None]
     deposits = sum((amount(f['amount']) for f in included if f['refundable'] and f['amount'] is not None), Decimal(0))
     total = monthly*months+upfront-deposits
-    eligible = [c for c in validate_credits(credits or []) if months>=c['minimum_months']]
+    eligible = [c for c in validate_credits([] if credits is None else credits) if months>=c['minimum_months']]
     credit_total = sum((amount(c['amount']) for c in eligible),Decimal(0))
     if credit_total>total:
         raise ValueError('Eligible credits cannot exceed known nonrefundable lease cost')

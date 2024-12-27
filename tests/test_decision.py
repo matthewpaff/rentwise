@@ -42,3 +42,7 @@ class DecisionTests(unittest.TestCase):
         output=json.loads(comparison_export(evaluate(self.listings)['results']))
         self.assertTrue(output['sandbox'])
         self.assertEqual(output['schema'],'rentwise.comparison.v1')
+
+    def test_invalid_falsy_preferences_are_not_defaults(self):
+        for value in [False,0,'',[]]:
+            with self.subTest(value=value),self.assertRaises(ValueError):evaluate(self.listings,value)
