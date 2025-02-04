@@ -1,7 +1,9 @@
 """Optional Ollama adapter. All trusted policy and arithmetic stay in engine.py."""
 import json
 import urllib.request
+from urllib.parse import urlsplit
 from engine import money
+from contracts import parse_json
 
 def validate_preferences(value):
     if not isinstance(value, dict) or set(value) - {'budget','kind','months','optional','known_only','sort'}:
@@ -25,19 +27,25 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ValueError('Model endpoint redirects are disabled')
 
 class OllamaAdapter:
-    def __init__(self, model, transport=None):
+    def __init__(self, model, transport=None, endpoint='http://127.0.0.1:11434/api/chat'):
+        if not isinstance(model,str) or not 1<=len(model.strip())<=200:
+            raise ValueError('A local model name is required')
+        target=urlsplit(endpoint)
+        if target.scheme!='http' or target.hostname!='127.0.0.1' or target.path!='/api/chat' or target.query or target.fragment or target.username or target.password or not target.port:
+            raise ValueError('Model endpoint must be an explicit IPv4 loopback /api/chat URL')
         self.model = model
+        self.endpoint=endpoint
         self.transport = transport or self._request
 
     def _request(self, payload):
         # Endpoint is fixed loopback and cannot be supplied by browser input.
-        req = urllib.request.Request('http://127.0.0.1:11434/api/chat', data=json.dumps(payload).encode(), headers={'Content-Type':'application/json'})
+        req = urllib.request.Request(self.endpoint, data=json.dumps(payload).encode(), headers={'Content-Type':'application/json'})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
         with opener.open(req, timeout=15) as response:
             raw = response.read(65537)
         if len(raw) > 65536:
             raise ValueError('Model response exceeded 64 KiB')
-        return json.loads(raw)
+        return parse_json(raw)
 
     def propose_preferences(self, text):
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
@@ -47,6 +55,6 @@ class OllamaAdapter:
             {'role':'user','content':text}]}
         try:
             response = self.transport(payload)
-            return validate_preferences(json.loads(response['message']['content']))
+            return validate_preferences(parse_json(response['message']['content']))
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             raise ValueError('Model returned malformed preference JSON') from exc
