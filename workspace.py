@@ -28,6 +28,7 @@ class Workspace:
             CREATE TABLE IF NOT EXISTS collections(id TEXT PRIMARY KEY,name TEXT NOT NULL,created REAL NOT NULL,archived INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS collection_versions(collection_id TEXT NOT NULL,version INTEGER NOT NULL,created REAL NOT NULL,provenance TEXT NOT NULL,listings TEXT NOT NULL,PRIMARY KEY(collection_id,version));
             CREATE TABLE IF NOT EXISTS saved_searches(id TEXT PRIMARY KEY,name TEXT NOT NULL,preferences TEXT NOT NULL,created REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS comparison_snapshots(id TEXT PRIMARY KEY,name TEXT NOT NULL,created REAL NOT NULL,payload TEXT NOT NULL);
             ''')
 
     @contextmanager
@@ -123,3 +124,26 @@ class Workspace:
             fields={field:{'before':old_items[item_id].get(field),'after':new_items[item_id].get(field)} for field in sorted(old_items[item_id].keys()|new_items[item_id].keys()) if old_items[item_id].get(field)!=new_items[item_id].get(field)}
             if fields:changed.append({'id':item_id,'fields':fields})
         return {'id':key,'before_version':old['version'],'after_version':new['version'],'added':sorted(new_items.keys()-old_items.keys()),'removed':sorted(old_items.keys()-new_items.keys()),'changed':changed}
+
+    def save_snapshot(self,name,listings,preferences):
+        from decision import evaluate
+        name=text(name,'Snapshot name')
+        result=evaluate(listings,preferences)
+        if not result['results']:raise ValueError('A snapshot requires at least one matching listing')
+        key=uuid.uuid4().hex
+        payload={'schema':'rentwise.snapshot.v1','sandbox':True,**result}
+        with self.connect() as db:
+            db.execute('INSERT INTO comparison_snapshots VALUES(?,?,?,?)',(key,name,self.clock(),json.dumps(payload)))
+        return self.snapshot(key)
+
+    def snapshot(self,key):
+        key=text(key,'Snapshot ID')
+        with self.connect() as db:
+            row=db.execute('SELECT * FROM comparison_snapshots WHERE id=?',(key,)).fetchone()
+        if not row:raise ValueError('Unknown comparison snapshot')
+        return {'id':row['id'],'name':row['name'],'created':row['created'],'payload':json.loads(row['payload'])}
+
+    def snapshots(self):
+        with self.connect() as db:
+            rows=db.execute('SELECT id,name,created FROM comparison_snapshots ORDER BY created DESC,id').fetchall()
+        return [dict(row) for row in rows]
