@@ -13,6 +13,7 @@ FIELDS={
  '/api/collections/revise':{'id','listings','provenance','expected_version'},
  '/api/collections/archive':{'id','archived'},
  '/api/collections/diff':{'id','before','after'},
+ '/api/snapshots/save':{'name','listings','preferences'}, '/api/snapshots/load':{'id'},
 }
 
 def validate_fields(path,body):
