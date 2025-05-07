@@ -74,3 +74,16 @@ function renderBooking(b){
  row.append(buttons);historyList.append(row);
 }
 refreshBookings().catch(e=>message(e.message));
+const snapshotArea=el('div',undefined,'panel');snapshotArea.append(el('div','DECISION RECORDS','eyebrow'),el('h2','Save this comparison as a snapshot.'),el('p','Snapshots preserve the evaluated costs, filters and source text at save time. They are research records, never booking instructions.','muted'));
+const snapshotName=input('e.g. First shortlist · November');snapshotArea.append(field('Snapshot name',snapshotName));
+const snapshotList=el('div',undefined,'workspace-list');snapshotArea.append(action('Save selected comparison',async()=>{
+ const listings=(imported||samples).filter(x=>selected.has(x.id)&&results.some(r=>r.id===x.id));if(!listings.length)throw new Error('Select at least one visible home first.');
+ await api('/api/snapshots/save',{name:snapshotName.value,listings,preferences:prefs()});await refreshSnapshots();message('Saved immutable comparison snapshot.');
+},true),snapshotList);$('comparison').after(snapshotArea);
+async function refreshSnapshots(){
+ const response=await fetch('/api/snapshots');const data=await response.json();if(!response.ok)throw new Error(data.error);snapshotList.replaceChildren();
+ if(!data.snapshots.length)snapshotList.append(el('p','No saved decision records yet.','muted'));
+ data.snapshots.forEach(s=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',s.name),el('small',new Date(s.created*1000).toLocaleString()));const buttons=el('div',undefined,'button-row');
+ buttons.append(action('Inspect snapshot',async()=>{const snapshot=await api('/api/snapshots/load',{id:s.id});const detail=el('pre',JSON.stringify(snapshot,null,2));row.append(detail);message('Viewing an immutable saved calculation; current filters were not changed.');}),action('Download JSON',async()=>{const snapshot=await api('/api/snapshots/load',{id:s.id});download(JSON.stringify(snapshot,null,2),'application/json','rentwise-snapshot-'+s.id+'.json');message('Downloaded saved research record.');}));row.append(buttons);snapshotList.append(row);});
+}
+refreshSnapshots().catch(e=>message(e.message));
