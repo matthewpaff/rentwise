@@ -38,6 +38,12 @@ class WorkspaceHttpTests(unittest.TestCase):
         for invalid in [False,0,'',[]]:
             self.assertEqual(self.call('/api/export',{'preferences':invalid})[0],400)
 
+    def test_deep_json_and_enormous_integer_fail_without_dropping_connection(self):
+        for raw in [(b'{"listings":'+b'['*2000+b'0'+b']'*2000+b'}'),b'{"months":'+b'9'*5000+b'}']:
+            self.assertEqual(self.call('/api/evaluate',raw=raw)[0],400)
+        self.assertEqual(self.call('/api/evaluate',{},headers={'Transfer-Encoding':'chunked'})[0],400)
+        self.assertEqual(self.call('/api/health')[0],200)
+
     def test_collection_import_revision_and_original_retrieval(self):
         status,created=self.call('/api/collections/create',{'name':'HTTP import','listings':server.LISTINGS,'provenance':'Synthetic API test'})
         self.assertEqual(status,200)
