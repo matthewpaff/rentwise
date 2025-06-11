@@ -99,6 +99,10 @@ class BookingStore:
             raise ValueError('Invalid listing ID')
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
+            previous=db.execute('SELECT * FROM bookings WHERE key=?',(key,)).fetchone()
+            if previous:
+                if previous[1]!=listing:raise ValueError('Idempotency key already belongs to another listing')
+                return self.serialize(previous)
             existing=db.execute('SELECT key FROM bookings WHERE listing=? AND status IN (?,?) AND key<>?',(listing,'pending','sandbox_confirmed',key)).fetchone()
             if existing:raise ValueError('An active sandbox request already exists for this listing; inspect booking history')
             created=db.execute('INSERT OR IGNORE INTO bookings VALUES (?, ?, ?, ?)', (key, listing, self.clock(), 'pending')).rowcount

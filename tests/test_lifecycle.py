@@ -37,3 +37,11 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(len(self.store.events('request-01')),2)
         with self.assertRaises(ValueError):self.store.cancel('request-01','yes')
         self.assertEqual(self.store.status('request-01')['status'],'sandbox_confirmed')
+
+    def test_old_cancelled_retry_returns_original_even_after_new_request(self):
+        self.store.book('request-old','sample',True)
+        self.store.cancel('request-old',True)
+        self.store.book('request-new','sample',True)
+        self.assertEqual(self.store.book('request-old','sample',True)['status'],'cancelled')
+        self.assertEqual(self.store.status('request-new')['status'],'pending')
+        self.assertEqual(len(self.store.events('request-old')),2)
