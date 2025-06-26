@@ -8,6 +8,8 @@ from exports import comparison_export
 
 def main(argv=None,stdin=None,stdout=None,stderr=None):
     stdin,stdout,stderr=stdin or sys.stdin,stdout or sys.stdout,stderr or sys.stderr
+    if hasattr(stdout,'reconfigure'):stdout.reconfigure(encoding='utf-8')
+    if hasattr(stderr,'reconfigure'):stderr.reconfigure(encoding='utf-8')
     parser=argparse.ArgumentParser(description='Evaluate synthetic or user-provided USD rental listings')
     parser.add_argument('--input',default=str(Path(__file__).with_name('data.json')),help='Listing JSON file, or - for stdin')
     parser.add_argument('--budget',default='1000000')
