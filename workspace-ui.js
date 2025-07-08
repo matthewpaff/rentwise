@@ -1,5 +1,7 @@
 /* Persistent local workspace controls; all user text is rendered as text nodes. */
 const workspacePanel=el('section',undefined,'panel workspace-panel');workspacePanel.id='workspace';
+$('notice').setAttribute('aria-live','polite');$('model-result').setAttribute('role','status');$('booking-result').setAttribute('role','status');
+document.querySelector('.nav.active').setAttribute('aria-current','page');
 const sortSelect=el('select');sortSelect.id='sort';
 for(const [value,label] of [['total','Known lease expense'],['monthly','Recurring monthly cost'],['effective','Effective monthly expense'],['completeness','Price completeness']]){const opt=el('option',label);opt.value=value;sortSelect.append(opt);}
 document.querySelector('.toolbar').append(field('Rank homes by',sortSelect));sortSelect.onchange=evaluate;
