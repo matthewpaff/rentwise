@@ -16,6 +16,14 @@ class FeeTests(unittest.TestCase):
         self.assertTrue(fee_totals(fees)['complete'])
         self.assertFalse(fee_totals(fees,include_optional=True)['complete'])
 
+    def test_optional_one_time_fee_changes_upfront_only_when_selected(self):
+        fees=[fee('rent','1000'),fee('storage-setup','75','once',required=False)]
+        self.assertEqual(fee_totals(fees)['upfront'],'0.00')
+        included=fee_totals(fees,include_optional=True)
+        self.assertEqual(included['upfront'],'75.00')
+        self.assertEqual(included['monthly'],'1000.00')
+        self.assertEqual(included['total'],'12075.00')
+
     def test_currency_and_duplicate_fee_rejection(self):
         with self.assertRaises(ValueError):validate_fees([fee('rent','2')],'EUR')
         with self.assertRaises(ValueError):validate_fees([fee('rent','2'),fee('rent','3')])

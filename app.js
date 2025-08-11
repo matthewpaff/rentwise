@@ -26,6 +26,7 @@ function renderFinancialDetails(){
  document.querySelector('header .badge').textContent=imported?'● USER INPUT · SANDBOX':'● SAMPLE DATA · SANDBOX';
  document.querySelectorAll('#cards .card-body').forEach((body,index)=>{
   const item=results[index];if(!item)return;
+  body.querySelector('.breakdown > div:last-child strong').textContent=usd(item.cost.upfront);
   body.querySelector('.card-bottom button')?.setAttribute('aria-pressed',String(selected.has(item.id)));
   if(body.querySelector('[data-financial-details]'))return;
   const details=el('details');details.append(el('summary','Cost breakdown & decision notes'));
