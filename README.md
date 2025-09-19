@@ -7,7 +7,7 @@ A source-aware rental decision dashboard and local booking simulation, created N
 Requires Python 3.10+; no packages, credentials or installation needed.
 
 ```powershell
-cd E:\code\Portfolios\project\showcase\rentwise
+cd rentwise
 python server.py
 ```
 
@@ -52,3 +52,7 @@ Requests require JSON objects and are capped at 100 KB. Responses use a restrict
 ## Provenance
 
 `data.json` contains all four authored source excerpts, IDs and creation/observation date (2026-11-05). “Observed” means the date this synthetic fixture was created, not a scrape or a visit to an actual property. No historical experience, deployment, users or benchmark results are claimed. Prices are illustrative USD and do not constitute rental guidance.
+
+## Demo and review
+
+See [DEMO.md](DEMO.md) for a repeatable walkthrough and the distinction between measured checks and simulated records. See [HISTORY.md](HISTORY.md) for project provenance.
