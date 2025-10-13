@@ -1,3 +1,8 @@
+> **Illustrative Git calendar:** 2023-04-03 through 2025-10-24, assigned November 6, 2026.
+> Actual development occurred in November 2026. These dates are simulated,
+> not evidence of historical work or employment. This supersedes older
+> statements below about actual Git dates. See [HISTORY.md](HISTORY.md).
+
 # Rentwise
 
 A source-aware rental decision dashboard and local booking simulation, created November 5, 2026. The four San Diego listings, addresses implied by neighborhoods, prices and source excerpts are **synthetic sample data**, authored for this project on that date. They are not collected offers or evidence of historical work. Architecture illustrations are CSS, not property photographs.
