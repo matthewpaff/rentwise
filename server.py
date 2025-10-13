@@ -6,13 +6,32 @@ import argparse
 import json
 from engine import BookingStore, costs, validate_listing, money
 from model_adapter import OllamaAdapter, validate_preferences
+from workspace import Workspace
+from decision import evaluate
+from exports import comparison_export
+from contracts import parse_json, validate_fields
 
 ROOT = Path(__file__).resolve().parent
 LISTINGS = [validate_listing(x) for x in json.loads((ROOT / 'data.json').read_text(encoding='utf-8'))]
 store = None
 model = None
+workspace = None
+
+def local_workspace():
+    if workspace is not None:return workspace
+    if store is None:raise ValueError('Workspace storage is unavailable')
+    return Workspace(store.path)
 
 class Handler(BaseHTTPRequestHandler):
+    def trusted_host(self):
+        port=self.server.server_port
+        allowed={f'127.0.0.1:{port}',f'localhost:{port}'}
+        if port==80:allowed.update({'127.0.0.1','localhost'})
+        if self.headers.get('Host') not in allowed:
+            self.respond(403,{'error':'Host must be this loopback server and port'})
+            return False
+        return True
+
     def respond(self, status, value, kind='application/json'):
         raw = json.dumps(value).encode() if kind == 'application/json' else value
         self.send_response(status)
@@ -25,31 +44,84 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_GET(self):
+        if not self.trusted_host():return
         path = urlsplit(self.path).path
         if path == '/api/health':
             return self.respond(200, {'status':'ok','sandbox':True,'model_enabled':model is not None})
         if path == '/api/listings':
             return self.respond(200, {'listings': LISTINGS, 'sample': True})
-        assets = {'/': ('index.html','text/html'), '/app.js': ('app.js','text/javascript'), '/style.css': ('style.css','text/css')}
+        if path == '/api/fee-lab':
+            return self.respond(200,{'listings':json.loads((ROOT/'fee-lab.json').read_text(encoding='utf-8')),'sample':True})
+        if path == '/api/collections':
+            return self.respond(200, {'collections':local_workspace().collections(True)})
+        if path == '/api/searches':
+            return self.respond(200, {'searches':local_workspace().searches()})
+        if path == '/api/snapshots':
+            return self.respond(200, {'snapshots':local_workspace().snapshots()})
+        if path == '/api/bookings':
+            return self.respond(200, {'bookings':store.history()})
+        assets = {'/': ('index.html','text/html'), '/app.js': ('app.js','text/javascript'), '/workspace-ui.js':('workspace-ui.js','text/javascript'), '/style.css': ('style.css','text/css')}
         if path in assets:
             name, kind = assets[path]
             return self.respond(200, (ROOT / name).read_bytes(), kind)
         self.respond(404, {'error': 'Route not found'})
 
     def do_POST(self):
+        if not self.trusted_host():return
         # Same-origin checks prevent browser cross-site actions against localhost.
         if self.headers.get('Origin') not in (None, 'http://' + self.headers.get('Host', '')):
             return self.respond(403, {'error': 'Same-origin requests only'})
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
             return self.respond(415, {'error': 'Use application/json'})
         try:
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
+                raise ValueError('Provide exactly one Content-Length; transfer encoding is unsupported')
             length = int(self.headers.get('Content-Length', '0'))
             if not 0 < length <= 100000:
                 raise ValueError('JSON body must be 1–100000 bytes')
-            body = json.loads(self.rfile.read(length))
+            body = parse_json(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
+            validate_fields(path,body)
+            if path == '/api/snapshots/save':
+                return self.respond(200,local_workspace().save_snapshot(body.get('name'),body.get('listings'),body.get('preferences')))
+            if path == '/api/snapshots/load':
+                return self.respond(200,local_workspace().snapshot(body.get('id')))
+            if path == '/api/collections/diff':
+                if body.get('before') is None or body.get('after') is None:raise ValueError('before and after versions are required')
+                return self.respond(200,local_workspace().diff(body.get('id'),body['before'],body['after']))
+            if path == '/api/export':
+                preferences=body.get('preferences',{})
+                result=evaluate(body.get('listings',LISTINGS),preferences)['results']
+                ids=body.get('ids')
+                if ids is not None:
+                    if not isinstance(ids,list) or not 1<=len(ids)<=50 or any(not isinstance(x,str) for x in ids):
+                        raise ValueError('ids must be an array of 1–50 listing IDs')
+                    if set(ids)-{x['id'] for x in result}:raise ValueError('Export selection contains unknown or filtered IDs')
+                    result=[x for x in result if x['id'] in ids]
+                format=body.get('format','json')
+                return self.respond(200,{'format':format,'content':comparison_export(result,format)})
+            if path == '/api/searches/save':
+                return self.respond(200,local_workspace().save_search(body.get('name'),body.get('preferences')))
+            if path == '/api/searches/delete':
+                return self.respond(200,local_workspace().delete_search(body.get('id')))
+            if path == '/api/bookings/status':
+                return self.respond(200,store.status(body.get('key')))
+            if path == '/api/bookings/events':
+                return self.respond(200,{'events':store.events(body.get('key'))})
+            if path == '/api/bookings/cancel':
+                return self.respond(200,store.cancel(body.get('key'),body.get('consent')))
+            if path == '/api/collections/create':
+                return self.respond(200,local_workspace().create_collection(body.get('name'),body.get('listings'),body.get('provenance')))
+            if path == '/api/collections/load':
+                return self.respond(200,local_workspace().collection(body.get('id'),body.get('version')))
+            if path == '/api/collections/revise':
+                return self.respond(200,local_workspace().revise_collection(body.get('id'),body.get('listings'),body.get('provenance'),body.get('expected_version')))
+            if path == '/api/collections/versions':
+                return self.respond(200,{'versions':local_workspace().versions(body.get('id'))})
+            if path == '/api/collections/archive':
+                return self.respond(200,local_workspace().archive_collection(body.get('id'),body.get('archived',True)))
             if path == '/api/preferences':
                 if model is None:
                     return self.respond(503, {'error':'Local model disabled. Start with --ollama-model MODEL and run Ollama locally to opt in.'})
@@ -58,24 +130,8 @@ class Handler(BaseHTTPRequestHandler):
                 except OSError:
                     return self.respond(502, {'error':'Local model unavailable or timed out. Deterministic filtering remains available.'})
             if path == '/api/evaluate':
-                validate_preferences({k:body[k] for k in ('budget','kind','months','optional','known_only') if k in body})
-                listings = body.get('listings', LISTINGS)
-                if not isinstance(listings, list) or not 1 <= len(listings) <= 50:
-                    raise ValueError('Provide 1–50 listings')
-                listings = [validate_listing(x) for x in listings]
-                if len({x['id'] for x in listings}) != len(listings):
-                    raise ValueError('Listing IDs must be unique')
-                optional = body.get('optional', False)
-                if not isinstance(optional, bool):
-                    raise ValueError('optional must be boolean')
-                budget = money(body.get('budget', '1000000'))
-                kind = body.get('kind', 'all')
-                if kind not in ('all', 'room', 'whole'):
-                    raise ValueError('Invalid kind filter')
-                results = [{**x, 'cost': costs(x, body.get('months', 12), optional)} for x in listings]
-                results = [x for x in results if money(x['cost']['monthly']) <= budget and (kind == 'all' or x['kind'] == kind) and (not body.get('known_only', False) or x['cost']['complete'])]
-                results.sort(key=lambda x: money(x['cost']['total']))
-                return self.respond(200, {'results': results, 'method': 'Deterministic Decimal arithmetic; unknown fees excluded and flagged.'})
+                preferences={k:body[k] for k in ('budget','kind','months','optional','known_only','sort') if k in body}
+                return self.respond(200,evaluate(body.get('listings',LISTINGS),preferences))
             if path == '/api/book':
                 if body.get('listing') not in {x['id'] for x in LISTINGS}:
                     raise ValueError('Only bundled sample listings support sandbox booking')
@@ -93,6 +149,7 @@ if __name__ == '__main__':
     parser.add_argument('--ollama-model', help='Optional locally installed Ollama model; disabled by default')
     args = parser.parse_args()
     store = BookingStore(args.db)
+    workspace = Workspace(args.db)
     model = OllamaAdapter(args.ollama_model) if args.ollama_model else None
     print(f'Rentwise sample dashboard: http://127.0.0.1:{args.port} (Ctrl+C to stop)', flush=True)
     ThreadingHTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
