@@ -47,3 +47,11 @@ for(const format of ['json','csv'])exportButtons.append(action('Download compari
  const payload={preferences:prefs(),ids,format};if(imported)payload.listings=imported;
  const data=await api('/api/export',payload);download(data.content,format==='csv'?'text/csv;charset=utf-8':'application/json','rentwise-comparison.'+format);message('Downloaded source-cited '+format.toUpperCase()+' comparison. Unknown fees remain explicit.');
 }));
+const historyPanel=el('section',undefined,'panel');historyPanel.id='booking-history';historyPanel.append(el('div','SIMULATION ACTIVITY','eyebrow'),el('h2','Your sandbox requests.'),el('p','History survives a page refresh. These records never reserve a property or contact a host.','muted'));
+const historyList=el('div',undefined,'workspace-list');historyPanel.append(action('Refresh booking history',refreshBookings),historyList);document.querySelector('.bottom-grid').after(historyPanel);
+async function refreshBookings(){
+ const response=await fetch('/api/bookings');const data=await response.json();if(!response.ok)throw new Error(data.error);historyList.replaceChildren();
+ if(!data.bookings.length)historyList.append(el('p','No sandbox activity yet.','muted'));
+ data.bookings.forEach(b=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',b.listing+' · '+b.status),el('small',new Date(b.created*1000).toLocaleString()+' · '+b.key));const buttons=el('div',undefined,'button-row');buttons.append(action('Inspect status',async()=>{const status=await api('/api/bookings/status',{key:b.key});$('booking-result').textContent=JSON.stringify(status,null,2);message('Loaded current status without changing it.');}),action('Reconcile',async()=>{await api('/api/reconcile',{key:b.key});await refreshBookings();message('Reconciled simulated acknowledgement.');}));row.append(buttons);historyList.append(row);});
+}
+refreshBookings().catch(e=>message(e.message));
