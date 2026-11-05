@@ -9,6 +9,7 @@ from model_adapter import OllamaAdapter, validate_preferences
 from workspace import Workspace
 from decision import evaluate
 from exports import comparison_export
+from contracts import parse_json, validate_fields
 
 ROOT = Path(__file__).resolve().parent
 LISTINGS = [validate_listing(x) for x in json.loads((ROOT / 'data.json').read_text(encoding='utf-8'))]
@@ -72,10 +73,11 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '0'))
             if not 0 < length <= 100000:
                 raise ValueError('JSON body must be 1–100000 bytes')
-            body = json.loads(self.rfile.read(length))
+            body = parse_json(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
+            validate_fields(path,body)
             if path == '/api/export':
                 preferences=body.get('preferences',{})
                 result=evaluate(body.get('listings',LISTINGS),preferences)['results']
