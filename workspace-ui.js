@@ -26,3 +26,17 @@ async function refreshCollections(){
  data.collections.forEach(c=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',c.name),el('small','Version '+c.version+(c.archived?' · archived':' · active')));const buttons=el('div',undefined,'button-row');buttons.append(action('Load latest',()=>loadCollection(c.id)),action('Versions',async()=>{const data=await api('/api/collections/versions',{id:c.id});const history=el('div',undefined,'workspace-list');data.versions.forEach(v=>{const line=el('div');line.append(el('small','v'+v.version+' · '+new Date(v.created*1000).toLocaleString()+' · '+v.provenance),action('Load v'+v.version,()=>loadCollection(c.id,v.version)));history.append(line);});row.append(history);}),action(c.archived?'Restore':'Archive',async()=>{await api('/api/collections/archive',{id:c.id,archived:!c.archived});await refreshCollections();message(c.archived?'Collection restored.':'Collection archived; its version history is retained.');}));row.append(buttons);collectionList.append(row);});
 }
 refreshCollections().catch(e=>message(e.message));
+const searchName=input('e.g. Shared home under $1,200');searchArea.append(field('Search name',searchName));
+searchArea.append(action('Save current filters',async()=>{await api('/api/searches/save',{name:searchName.value,preferences:prefs()});await refreshSearches();message('Saved current filters. Listing data is stored separately in collections.');},true));
+const searchList=el('div',undefined,'workspace-list');searchArea.append(searchList);
+function applyPreferences(value){
+ const defaults={budget:'2500',kind:'all',months:12,optional:false,known_only:false};const p={...defaults,...value};
+ $('budget').value=p.budget;$('kind').value=p.kind;$('months').value=p.months;$('optional').checked=p.optional;$('known').checked=p.known_only;
+ return evaluate();
+}
+async function refreshSearches(){
+ const response=await fetch('/api/searches');const data=await response.json();if(!response.ok)throw new Error(data.error);searchList.replaceChildren();
+ if(!data.searches.length)searchList.append(el('p','Save useful filters and return to them later.','muted'));
+ data.searches.forEach(s=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',s.name),el('small',JSON.stringify(s.preferences)));const buttons=el('div',undefined,'button-row');buttons.append(action('Apply filters',async()=>{await applyPreferences(s.preferences);message('Applied saved search: '+s.name);}),action('Delete',async()=>{await api('/api/searches/delete',{id:s.id});await refreshSearches();message('Saved search deleted.');}));row.append(buttons);searchList.append(row);});
+}
+refreshSearches().catch(e=>message(e.message));
