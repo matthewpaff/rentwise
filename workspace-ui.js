@@ -13,3 +13,15 @@ collectionArea.append(el('h3','Listing collections'));searchArea.append(el('h3',
 const collectionName=input('e.g. November shortlist');const provenance=input('Where did these inputs come from?');
 collectionArea.append(field('Collection name',collectionName),field('Import / revision provenance',provenance));
 let activeCollection=null;
+const collectionButtons=el('div',undefined,'button-row');collectionArea.append(collectionButtons);
+const collectionList=el('div',undefined,'workspace-list');collectionArea.append(collectionList);
+collectionButtons.append(action('Save as new collection',async()=>{const data=await api('/api/collections/create',{name:collectionName.value,provenance:provenance.value,listings:JSON.parse($('json').value)});activeCollection=data;await refreshCollections();message('Saved collection version 1. Original source dates were retained.');},true));
+async function loadCollection(id,version){
+ const data=await api('/api/collections/load',{id,...(version?{version}:{})});activeCollection=data;imported=data.listings;$('json').value=JSON.stringify(imported,null,2);collectionName.value=data.name;provenance.value=data.provenance;selected.clear();await evaluate();message('Loaded '+data.name+' · version '+data.version+' · '+data.provenance);
+}
+async function refreshCollections(){
+ const response=await fetch('/api/collections');const data=await response.json();if(!response.ok)throw new Error(data.error);collectionList.replaceChildren();
+ if(!data.collections.length)collectionList.append(el('p','No collections yet. Save the editor contents to start a versioned research set.','muted'));
+ data.collections.forEach(c=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',c.name),el('small','Version '+c.version+(c.archived?' · archived':' · active')));const buttons=el('div',undefined,'button-row');buttons.append(action('Load latest',()=>loadCollection(c.id)));row.append(buttons);collectionList.append(row);});
+}
+refreshCollections().catch(e=>message(e.message));
