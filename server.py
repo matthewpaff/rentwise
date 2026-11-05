@@ -56,7 +56,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, {'searches':local_workspace().searches()})
         if path == '/api/bookings':
             return self.respond(200, {'bookings':store.history()})
-        assets = {'/': ('index.html','text/html'), '/app.js': ('app.js','text/javascript'), '/style.css': ('style.css','text/css')}
+        assets = {'/': ('index.html','text/html'), '/app.js': ('app.js','text/javascript'), '/workspace-ui.js':('workspace-ui.js','text/javascript'), '/style.css': ('style.css','text/css')}
         if path in assets:
             name, kind = assets[path]
             return self.respond(200, (ROOT / name).read_bytes(), kind)
