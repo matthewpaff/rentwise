@@ -31,3 +31,9 @@ class FeeTests(unittest.TestCase):
         self.assertEqual(result['total'],'11500.00')
         self.assertEqual(result['move_in_cash'],'1000.00')
         with self.assertRaises(ValueError):fee_totals([fee('rent','1')],1,credits=[{'label':'bad','amount':'2'}])
+
+    def test_effective_monthly_rounds_half_up_without_changing_total(self):
+        result=fee_totals([fee('rent','0.01'),fee('fee','0.01','once')],2)
+        self.assertEqual(result['effective_monthly'],'0.02')
+        self.assertEqual(result['total'],'0.03')
+        self.assertIn('0.01 monthly × 2',result['explanation'])
