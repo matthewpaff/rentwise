@@ -80,6 +80,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
             validate_fields(path,body)
+            if path == '/api/collections/diff':
+                if body.get('before') is None or body.get('after') is None:raise ValueError('before and after versions are required')
+                return self.respond(200,local_workspace().diff(body.get('id'),body['before'],body['after']))
             if path == '/api/export':
                 preferences=body.get('preferences',{})
                 result=evaluate(body.get('listings',LISTINGS),preferences)['results']
