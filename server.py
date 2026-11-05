@@ -56,6 +56,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, {'collections':local_workspace().collections(True)})
         if path == '/api/searches':
             return self.respond(200, {'searches':local_workspace().searches()})
+        if path == '/api/snapshots':
+            return self.respond(200, {'snapshots':local_workspace().snapshots()})
         if path == '/api/bookings':
             return self.respond(200, {'bookings':store.history()})
         assets = {'/': ('index.html','text/html'), '/app.js': ('app.js','text/javascript'), '/workspace-ui.js':('workspace-ui.js','text/javascript'), '/style.css': ('style.css','text/css')}
@@ -80,6 +82,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Request body must be an object')
             path = urlsplit(self.path).path
             validate_fields(path,body)
+            if path == '/api/snapshots/save':
+                return self.respond(200,local_workspace().save_snapshot(body.get('name'),body.get('listings'),body.get('preferences')))
+            if path == '/api/snapshots/load':
+                return self.respond(200,local_workspace().snapshot(body.get('id')))
             if path == '/api/collections/diff':
                 if body.get('before') is None or body.get('after') is None:raise ValueError('before and after versions are required')
                 return self.respond(200,local_workspace().diff(body.get('id'),body['before'],body['after']))
