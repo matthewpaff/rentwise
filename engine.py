@@ -57,7 +57,10 @@ def validate_listing(item):
         money(item.get(key))
     if not isinstance(item.get('unknown'), list) or len(item['unknown']) > 30 or any(not isinstance(x, str) or len(x) > 200 for x in item['unknown']):
         raise ValueError('unknown must be an array of fee names')
-    return {**{k: item[k] for k in ('id','name','area','kind','source','excerpt','observed_at','unknown')}, **{k: format(money(item[k]), '.2f') for k in MONEY_KEYS}}
+    completeness=item.get('price_completeness','partial' if item['unknown'] else 'complete')
+    if completeness not in ('complete','partial','unspecified') or (completeness=='complete' and item['unknown']):
+        raise ValueError('Price completeness must agree with known required fees')
+    return {**{k: item[k] for k in ('id','name','area','kind','source','excerpt','observed_at','unknown')}, **{k: format(money(item[k]), '.2f') for k in MONEY_KEYS},'price_completeness':completeness,'currency':'USD'}
 
 def costs(item, months=12, include_optional=False):
     if 'fees' in item:
@@ -71,7 +74,7 @@ def costs(item, months=12, include_optional=False):
     if include_optional:
         monthly += money(item['optional'])
     total = monthly * months + money(item['upfront'])
-    return {'monthly': format(monthly, '.2f'), 'upfront': format(money(item['upfront']), '.2f'), 'total': format(total, '.2f'), 'months': months, 'complete': not item['unknown'], 'unknown': item['unknown'], 'optional_included': include_optional, 'source': item['source'], 'excerpt': item['excerpt']}
+    return {'monthly': format(monthly, '.2f'), 'upfront': format(money(item['upfront']), '.2f'), 'total': format(total, '.2f'), 'months': months, 'complete': not item['unknown'] and item.get('price_completeness','complete')=='complete', 'unknown': item['unknown'], 'optional_included': include_optional, 'source': item['source'], 'excerpt': item['excerpt']}
 
 class BookingStore:
     """Local simulation only. A pending request cannot be retried as a new booking."""

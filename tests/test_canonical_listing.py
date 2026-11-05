@@ -33,5 +33,13 @@ class CanonicalListingTests(unittest.TestCase):
     def test_currency_and_observation_date_must_be_explicitly_supported(self):
         self.item['currency']='EUR'
         with self.assertRaises(ValueError):validate_listing(self.item)
+
+    def test_legacy_input_can_explicitly_withhold_complete_price_claim(self):
+        legacy=dict(self.item)
+        del legacy['fees'];del legacy['credits']
+        legacy.update(base='1000',required='0',optional='0',upfront='0',unknown=[],price_completeness='unspecified')
+        self.assertFalse(costs(validate_listing(legacy))['complete'])
+        legacy['price_completeness']='complete';legacy['unknown']=['Unpriced utility']
+        with self.assertRaises(ValueError):validate_listing(legacy)
         self.item['currency']='USD';self.item['observed_at']='2026-02-30'
         with self.assertRaises(ValueError):validate_listing(self.item)
