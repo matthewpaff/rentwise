@@ -20,9 +20,16 @@ function render(){
  results.forEach((x,i)=>{const card=el('article',undefined,'card');const art=el('div',undefined,'art tone-'+i);art.append(el('span',x.kind==='room'?'PRIVATE ROOM':'ENTIRE PLACE','tag'),el('span','ILLUSTRATIVE ARCHITECTURE','sample'));const b=el('div',undefined,'card-body');b.append(el('div',x.area+' · San Diego','location'),el('h3',x.name));const p=el('div',undefined,'price-row');const price=el('div',usd(x.cost.monthly),'price');price.append(el('small',' / month'));p.append(price,el('span',x.cost.complete?'Fees specified':'Unknown fees','cost-note'+(x.cost.complete?' complete':'')));b.append(p);const breakdown=el('div',undefined,'breakdown');[['Base rent',x.base],['Required /mo',x.required],['Upfront',x.upfront]].forEach(([k,v])=>{const d=el('div',k);d.append(el('strong',usd(v)));breakdown.append(d);});b.append(breakdown);const note=el('p',usd(x.cost.total)+' known total over '+x.cost.months+' months'+(x.cost.complete?'':' + unspecified charges'),'muted');b.append(note);const bottom=el('div',undefined,'card-bottom');const btn=el('button',selected.has(x.id)?'✓ Added to comparison':'+ Compare home');btn.onclick=()=>{if(selected.has(x.id))selected.delete(x.id);else if(selected.size<3)selected.add(x.id);else{$('notice').textContent='Choose up to three homes to compare.';return;}render();};bottom.append(el('span',x.source.split(' · ')[0],'source'),btn);b.append(bottom);card.append(art,b);$('cards').append(card);});renderCompare();
 }
 function renderFinancialDetails(){
+ const mode=$('sort')?.selectedOptions[0]?.textContent||'Known lease expense';
+ document.querySelector('main > .section-title > span').textContent='Ranked by '+mode.toLowerCase()+' ↑';
+ document.querySelector('.date-card span').textContent=imported?results.length+' matching imported inputs · unverified':samples.length+' illustrative listings · created Nov 5, 2026';
+ document.querySelector('header .badge').textContent=imported?'● USER INPUT · SANDBOX':'● SAMPLE DATA · SANDBOX';
  document.querySelectorAll('#cards .card-body').forEach((body,index)=>{
   const item=results[index];if(!item)return;
+  body.querySelector('.card-bottom button')?.setAttribute('aria-pressed',String(selected.has(item.id)));
+  if(body.querySelector('[data-financial-details]'))return;
   const details=el('details');details.append(el('summary','Cost breakdown & decision notes'));
+  details.setAttribute('data-financial-details','true');
   if(item.cost.explanation)details.append(el('p',item.cost.explanation,'muted'));
   if(item.cost.components){
    item.cost.components.forEach(fee=>{const row=el('div',undefined,'fee-line');row.append(el('span',fee.label+(fee.refundable?' · refundable':'')+(fee.required?'':' · optional')),el('strong',fee.amount===null?'Unspecified':usd(fee.amount)+(fee.cadence==='monthly'?'/mo':' once')));details.append(row);});
