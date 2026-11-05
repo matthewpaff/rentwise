@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
                 except OSError:
                     return self.respond(502, {'error':'Local model unavailable or timed out. Deterministic filtering remains available.'})
             if path == '/api/evaluate':
-                preferences={k:body[k] for k in ('budget','kind','months','optional','known_only') if k in body}
+                preferences={k:body[k] for k in ('budget','kind','months','optional','known_only','sort') if k in body}
                 return self.respond(200,evaluate(body.get('listings',LISTINGS),preferences))
             if path == '/api/book':
                 if body.get('listing') not in {x['id'] for x in LISTINGS}:
