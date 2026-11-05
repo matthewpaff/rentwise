@@ -13,10 +13,26 @@ async function evaluate(){
  finally{if(sequence===evaluationSequence)$('cards').setAttribute('aria-busy','false');}
 }
 function render(){
+ queueMicrotask(renderFinancialDetails);
  $('count').replaceChildren(el('span',String(results.length)+' possibilities'));$('lowest').textContent=results.length?usd(Math.min(...results.map(x=>Number(x.cost.monthly))))+' /mo':'—';
  $('complete').textContent=results.filter(x=>x.cost.complete).length+' fully specified';$('cards').replaceChildren();
  if(!results.length)$('cards').append(el('p','No homes match. Try a larger budget or include unknown fees.','empty'));
  results.forEach((x,i)=>{const card=el('article',undefined,'card');const art=el('div',undefined,'art tone-'+i);art.append(el('span',x.kind==='room'?'PRIVATE ROOM':'ENTIRE PLACE','tag'),el('span','ILLUSTRATIVE ARCHITECTURE','sample'));const b=el('div',undefined,'card-body');b.append(el('div',x.area+' · San Diego','location'),el('h3',x.name));const p=el('div',undefined,'price-row');const price=el('div',usd(x.cost.monthly),'price');price.append(el('small',' / month'));p.append(price,el('span',x.cost.complete?'Fees specified':'Unknown fees','cost-note'+(x.cost.complete?' complete':'')));b.append(p);const breakdown=el('div',undefined,'breakdown');[['Base rent',x.base],['Required /mo',x.required],['Upfront',x.upfront]].forEach(([k,v])=>{const d=el('div',k);d.append(el('strong',usd(v)));breakdown.append(d);});b.append(breakdown);const note=el('p',usd(x.cost.total)+' known total over '+x.cost.months+' months'+(x.cost.complete?'':' + unspecified charges'),'muted');b.append(note);const bottom=el('div',undefined,'card-bottom');const btn=el('button',selected.has(x.id)?'✓ Added to comparison':'+ Compare home');btn.onclick=()=>{if(selected.has(x.id))selected.delete(x.id);else if(selected.size<3)selected.add(x.id);else{$('notice').textContent='Choose up to three homes to compare.';return;}render();};bottom.append(el('span',x.source.split(' · ')[0],'source'),btn);b.append(bottom);card.append(art,b);$('cards').append(card);});renderCompare();
+}
+function renderFinancialDetails(){
+ document.querySelectorAll('#cards .card-body').forEach((body,index)=>{
+  const item=results[index];if(!item)return;
+  const details=el('details');details.append(el('summary','Cost breakdown & decision notes'));
+  if(item.cost.explanation)details.append(el('p',item.cost.explanation,'muted'));
+  if(item.cost.components){
+   item.cost.components.forEach(fee=>{const row=el('div',undefined,'fee-line');row.append(el('span',fee.label+(fee.refundable?' · refundable':'')+(fee.required?'':' · optional')),el('strong',fee.amount===null?'Unspecified':usd(fee.amount)+(fee.cadence==='monthly'?'/mo':' once')));details.append(row);});
+   const totals=el('p','Known cash outlay: '+usd(item.cost.cash_outlay)+' · Refundable deposit: '+usd(item.cost.refundable_deposits)+' · Effective monthly expense: '+usd(item.cost.effective_monthly),'muted');details.append(totals);
+   details.append(el('p','Move-in cash before credits: '+usd(item.cost.move_in_cash)+'. Credits do not assume immediate cash reimbursement.','muted'));
+  }
+  if(item.warnings?.length){const warnings=el('ul',undefined,'warning-list');item.warnings.forEach(value=>warnings.append(el('li',value)));details.append(warnings);}
+  if(item.ranking)details.append(el('p','Rank '+item.ranking.position+': '+item.ranking.basis+'. Known monthly budget headroom: '+usd(item.ranking.known_budget_headroom),'muted'));
+  details.append(el('blockquote',item.excerpt,'muted'),el('p',item.source+' · '+item.observed_at,'source'));body.append(details);
+ });
 }
 function renderCompare(){const matches=results.filter(x=>selected.has(x.id));$('compare').replaceChildren();$('selection').textContent=matches.length+' of 3 homes selected';if(!matches.length){$('compare').append(el('p','Select homes above to inspect their full source excerpts.','muted'));return;}matches.forEach(x=>{const d=el('div',undefined,'compare-item');d.append(el('small',x.kind==='room'?'PRIVATE ROOM · SHARED HOME':'ENTIRE PLACE'),el('h3',x.name),el('p',usd(x.cost.total)+' / '+x.cost.months+' months'),el('p','Optional extras: '+usd(x.optional)+'/mo ('+(x.cost.optional_included?'included':'excluded')+')'),el('p','Unknown: '+(x.unknown.join(', ')||'none stated')),el('blockquote',x.excerpt),el('p',x.source+' · observed '+x.observed_at,'source'));$('compare').append(d);});}
 ['budget','kind','months','optional','known'].forEach(id=>$(id).addEventListener('change',evaluate));
