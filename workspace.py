@@ -59,3 +59,24 @@ class Workspace:
             row=db.execute('SELECT * FROM collection_versions WHERE collection_id=? AND (? IS NULL OR version=?) ORDER BY version DESC LIMIT 1',(key,version,version)).fetchone()
             if not row:raise ValueError('Unknown collection version')
         return {**dict(metadata),'version':row['version'],'version_created':row['created'],'provenance':row['provenance'],'listings':json.loads(row['listings'])}
+
+    def revise_collection(self,key,listings,provenance,expected_version):
+        key=text(key,'Collection ID')
+        listings=corpus(listings)
+        provenance=text(provenance,'Revision provenance',2000)
+        if type(expected_version) is not int or expected_version<1:
+            raise ValueError('expected_version must be a positive integer')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            metadata=db.execute('SELECT * FROM collections WHERE id=?',(key,)).fetchone()
+            if not metadata or metadata['archived']:raise ValueError('Collection missing or archived')
+            latest=db.execute('SELECT MAX(version) FROM collection_versions WHERE collection_id=?',(key,)).fetchone()[0]
+            if latest!=expected_version:raise ValueError('Collection changed; reload before saving a revision')
+            db.execute('INSERT INTO collection_versions VALUES(?,?,?,?,?)',(key,latest+1,self.clock(),provenance,json.dumps(listings)))
+        return self.collection(key)
+
+    def versions(self,key):
+        self.collection(key)
+        with self.connect() as db:
+            rows=db.execute('SELECT version,created,provenance FROM collection_versions WHERE collection_id=? ORDER BY version DESC',(key,)).fetchall()
+        return [dict(row) for row in rows]
