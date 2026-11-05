@@ -4,6 +4,8 @@ from contextlib import contextmanager
 import json
 import sqlite3
 import time
+from datetime import date
+from finance import validate_fees, validate_credits, fee_totals
 
 MONEY_KEYS = ('base', 'required', 'optional', 'upfront')
 
@@ -28,6 +30,28 @@ def validate_listing(item):
         raise ValueError('kind must be room or whole')
     if len(item['id']) > 60 or not all(c.isalnum() or c in '-_' for c in item['id']):
         raise ValueError('id must contain only letters, digits, underscores or hyphens')
+    try:
+        date.fromisoformat(item['observed_at'])
+    except ValueError as exc:
+        raise ValueError('observed_at must be an ISO calendar date') from exc
+    currency=item.get('currency','USD')
+    if currency!='USD':
+        raise ValueError('Only USD listings are supported')
+    if 'fees' in item:
+        fees=validate_fees(item['fees'],currency)
+        result={k:item[k] for k in ('id','name','area','kind','source','excerpt','observed_at')}
+        result.update(currency=currency,fees=fees,credits=validate_credits(item.get('credits',[])))
+        # Compatibility totals are derived rather than trusted when components exist.
+        def subtotal(cadence,required):
+            return format(sum((money(f['amount']) for f in fees if f['amount'] is not None and f['cadence']==cadence and f['required']==required),money('0')),'.2f')
+        result.update(base=subtotal('monthly',True),required='0.00',optional=subtotal('monthly',False),upfront=format(sum((money(f['amount']) for f in fees if f['amount'] is not None and f['cadence']=='once'),money('0')),'.2f'),unknown=[f['label'] for f in fees if f['required'] and f['amount'] is None])
+        completeness=item.get('price_completeness','unspecified')
+        if completeness not in ('complete','partial','unspecified'):
+            raise ValueError('price_completeness must be complete, partial or unspecified')
+        if completeness=='complete' and result['unknown']:
+            raise ValueError('Complete price cannot contain unknown required fees')
+        result['price_completeness']=completeness
+        return result
     for key in MONEY_KEYS:
         money(item.get(key))
     if not isinstance(item.get('unknown'), list) or len(item['unknown']) > 30 or any(not isinstance(x, str) or len(x) > 200 for x in item['unknown']):
@@ -35,6 +59,11 @@ def validate_listing(item):
     return {**{k: item[k] for k in ('id','name','area','kind','source','excerpt','observed_at','unknown')}, **{k: format(money(item[k]), '.2f') for k in MONEY_KEYS}}
 
 def costs(item, months=12, include_optional=False):
+    if 'fees' in item:
+        result=fee_totals(item['fees'],months,include_optional,item.get('credits'))
+        result['complete']=result['complete'] and item.get('price_completeness')=='complete'
+        result.update(source=item['source'],excerpt=item['excerpt'])
+        return result
     if isinstance(months, bool) or not isinstance(months, int) or not 1 <= months <= 60:
         raise ValueError('months must be an integer from 1 to 60')
     monthly = money(item['base']) + money(item['required'])
