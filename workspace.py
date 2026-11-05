@@ -114,3 +114,12 @@ class Workspace:
             if not db.execute('DELETE FROM saved_searches WHERE id=?',(key,)).rowcount:
                 raise ValueError('Unknown saved search')
         return {'deleted':key}
+
+    def diff(self,key,before,after):
+        old=self.collection(key,before);new=self.collection(key,after)
+        old_items={x['id']:x for x in old['listings']};new_items={x['id']:x for x in new['listings']}
+        changed=[]
+        for item_id in sorted(old_items.keys() & new_items.keys()):
+            fields={field:{'before':old_items[item_id].get(field),'after':new_items[item_id].get(field)} for field in sorted(old_items[item_id].keys()|new_items[item_id].keys()) if old_items[item_id].get(field)!=new_items[item_id].get(field)}
+            if fields:changed.append({'id':item_id,'fields':fields})
+        return {'id':key,'before_version':old['version'],'after_version':new['version'],'added':sorted(new_items.keys()-old_items.keys()),'removed':sorted(old_items.keys()-new_items.keys()),'changed':changed}

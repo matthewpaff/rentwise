@@ -47,3 +47,15 @@ class WorkspaceTests(unittest.TestCase):
     def test_invalid_import_is_atomic(self):
         with self.assertRaises(ValueError):self.store.create_collection('Bad',self.listings*2,'Duplicate IDs')
         self.assertEqual(self.store.collections(),[])
+
+    def test_diff_reports_added_removed_and_changed_without_mutating_versions(self):
+        key=self.store.create_collection('Diff research',self.listings,'Sample')['id']
+        revised=json.loads(json.dumps(self.listings[1:]))
+        revised[0]['base']='1100'
+        addition=dict(self.listings[0],id='new-sample')
+        self.store.revise_collection(key,revised+[addition],'Price correction',1)
+        diff=self.store.diff(key,1,2)
+        self.assertEqual(diff['added'],['new-sample'])
+        self.assertEqual(diff['removed'],['cedar-studio'])
+        self.assertEqual(diff['changed'][0]['fields']['base']['before'],'1090.00')
+        self.assertEqual(diff['changed'][0]['fields']['base']['after'],'1100.00')
