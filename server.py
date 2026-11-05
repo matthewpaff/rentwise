@@ -74,6 +74,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
             return self.respond(415, {'error': 'Use application/json'})
         try:
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:
+                raise ValueError('Provide exactly one Content-Length; transfer encoding is unsupported')
             length = int(self.headers.get('Content-Length', '0'))
             if not 0 < length <= 100000:
                 raise ValueError('JSON body must be 1–100000 bytes')

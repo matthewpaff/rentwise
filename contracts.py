@@ -28,4 +28,7 @@ def parse_json(raw):
             result[key]=value
         return result
     def constant(value):raise ValueError('Nonfinite JSON numbers are not supported: '+value)
-    return json.loads(raw,object_pairs_hook=pairs,parse_constant=constant)
+    try:
+        return json.loads(raw,object_pairs_hook=pairs,parse_constant=constant)
+    except RecursionError as exc:
+        raise ValueError('JSON nesting exceeds the supported depth') from exc
