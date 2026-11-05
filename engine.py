@@ -107,6 +107,7 @@ class BookingStore:
         if not isinstance(key, str) or not 8 <= len(key) <= 100:
             raise ValueError('Invalid idempotency key')
         with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT * FROM bookings WHERE key=?', (key,)).fetchone()
             if not row:
                 raise ValueError('Unknown sandbox booking')
@@ -115,6 +116,21 @@ class BookingStore:
                 db.execute('UPDATE bookings SET status=? WHERE key=?', ('sandbox_confirmed', key))
                 db.execute('INSERT INTO booking_events(booking_key,occurred,previous_status,status,reason) VALUES(?,?,?,?,?)',(key,self.clock(),'pending','sandbox_confirmed','Simulated delayed acknowledgement'))
             row = db.execute('SELECT * FROM bookings WHERE key=?', (key,)).fetchone()
+        return self.serialize(row)
+
+    def cancel(self,key,consent):
+        if consent is not True:raise ValueError('Explicit sandbox cancellation consent is required')
+        if not isinstance(key,str) or not 8<=len(key)<=100:raise ValueError('Invalid idempotency key')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT * FROM bookings WHERE key=?',(key,)).fetchone()
+            if not row:raise ValueError('Unknown sandbox booking')
+            if row[3] not in ('pending','sandbox_confirmed','cancelled'):
+                raise ValueError('Illegal sandbox state transition')
+            if row[3]!='cancelled':
+                db.execute('UPDATE bookings SET status=? WHERE key=?',('cancelled',key))
+                db.execute('INSERT INTO booking_events(booking_key,occurred,previous_status,status,reason) VALUES(?,?,?,?,?)',(key,self.clock(),row[3],'cancelled','User explicitly cancelled local simulation'))
+            row=db.execute('SELECT * FROM bookings WHERE key=?',(key,)).fetchone()
         return self.serialize(row)
 
     def history(self,limit=100):
