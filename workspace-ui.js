@@ -52,6 +52,18 @@ const historyList=el('div',undefined,'workspace-list');historyPanel.append(actio
 async function refreshBookings(){
  const response=await fetch('/api/bookings');const data=await response.json();if(!response.ok)throw new Error(data.error);historyList.replaceChildren();
  if(!data.bookings.length)historyList.append(el('p','No sandbox activity yet.','muted'));
- data.bookings.forEach(b=>{const row=el('div',undefined,'workspace-row');row.append(el('strong',b.listing+' · '+b.status),el('small',new Date(b.created*1000).toLocaleString()+' · '+b.key));const buttons=el('div',undefined,'button-row');buttons.append(action('Inspect status',async()=>{const status=await api('/api/bookings/status',{key:b.key});$('booking-result').textContent=JSON.stringify(status,null,2);message('Loaded current status without changing it.');}),action('Reconcile',async()=>{await api('/api/reconcile',{key:b.key});await refreshBookings();message('Reconciled simulated acknowledgement.');}));row.append(buttons);historyList.append(row);});
+ data.bookings.forEach(renderBooking);
+}
+function renderBooking(b){
+ const row=el('div',undefined,'workspace-row');row.append(el('strong',b.listing+' · '+b.status),el('small',new Date(b.created*1000).toLocaleString()+' · '+b.key));
+ const buttons=el('div',undefined,'button-row');
+ buttons.append(action('Inspect status',async()=>{const status=await api('/api/bookings/status',{key:b.key});$('booking-result').textContent=JSON.stringify(status,null,2);message('Loaded current status without changing it.');}));
+ if(b.status==='pending')buttons.append(action('Reconcile',async()=>{await api('/api/reconcile',{key:b.key});await refreshBookings();message('Reconciled simulated acknowledgement.');}));
+ buttons.append(action('Audit trail',async()=>{const data=await api('/api/bookings/events',{key:b.key});const events=el('ol',undefined,'muted');data.events.forEach(event=>events.append(el('li',new Date(event.occurred*1000).toLocaleString()+': '+(event.previous_status||'new')+' → '+event.status+' · '+event.reason)));row.append(events);}));
+ if(b.status!=='cancelled'){
+  const consent=el('input');consent.type='checkbox';const label=field(' I explicitly consent to cancel this sandbox request.',consent);label.className='check consent';row.append(label);
+  buttons.append(action('Cancel simulation',async()=>{if(!consent.checked)throw new Error('Check the cancellation consent box for this request.');await api('/api/bookings/cancel',{key:b.key,consent:true});await refreshBookings();message('Sandbox request cancelled. It cannot be reactivated by a retry.');}));
+ }
+ row.append(buttons);historyList.append(row);
 }
 refreshBookings().catch(e=>message(e.message));
