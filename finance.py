@@ -52,4 +52,6 @@ def fee_totals(fees, months=12, include_optional=False):
     monthly = sum((amount(f['amount']) for f in included if f['cadence']=='monthly' and f['amount'] is not None), Decimal(0))
     upfront = sum((amount(f['amount']) for f in included if f['cadence']=='once' and f['amount'] is not None), Decimal(0))
     unknown = [f['label'] for f in included if f['amount'] is None]
-    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(monthly*months+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
+    deposits = sum((amount(f['amount']) for f in included if f['refundable'] and f['amount'] is not None), Decimal(0))
+    total = monthly*months+upfront-deposits
+    return {'monthly':cents(monthly),'upfront':cents(upfront),'total':cents(total),'cash_outlay':cents(total+deposits),'refundable_deposits':cents(deposits),'move_in_cash':cents(monthly+upfront),'months':months,'currency':'USD','complete':not unknown,'unknown':unknown,'optional_included':include_optional,'components':included}
