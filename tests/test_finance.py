@@ -23,3 +23,11 @@ class FeeTests(unittest.TestCase):
 
     def test_float_cannot_enter_canonical_engine(self):
         with self.assertRaises(ValueError):fee_totals([fee('rent',0.1)])
+
+    def test_credit_is_conditional_and_does_not_reduce_move_in_cash(self):
+        credits=[{'label':'12-month concession','amount':'500','minimum_months':12}]
+        self.assertEqual(fee_totals([fee('rent','1000')],6,credits=credits)['credit_total'],'0.00')
+        result=fee_totals([fee('rent','1000')],12,credits=credits)
+        self.assertEqual(result['total'],'11500.00')
+        self.assertEqual(result['move_in_cash'],'1000.00')
+        with self.assertRaises(ValueError):fee_totals([fee('rent','1')],1,credits=[{'label':'bad','amount':'2'}])
