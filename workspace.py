@@ -94,3 +94,23 @@ class Workspace:
             if not db.execute('UPDATE collections SET archived=? WHERE id=?',(archived,key)).rowcount:
                 raise ValueError('Unknown collection')
         return self.collection(key)
+
+    def save_search(self,name,preferences):
+        name=text(name,'Search name')
+        preferences=validate_preferences(preferences)
+        key=uuid.uuid4().hex
+        with self.connect() as db:
+            db.execute('INSERT INTO saved_searches VALUES(?,?,?,?)',(key,name,json.dumps(preferences),self.clock()))
+        return {'id':key,'name':name,'preferences':preferences}
+
+    def searches(self):
+        with self.connect() as db:
+            rows=db.execute('SELECT * FROM saved_searches ORDER BY created DESC,id').fetchall()
+        return [{**dict(row),'preferences':json.loads(row['preferences'])} for row in rows]
+
+    def delete_search(self,key):
+        key=text(key,'Search ID')
+        with self.connect() as db:
+            if not db.execute('DELETE FROM saved_searches WHERE id=?',(key,)).rowcount:
+                raise ValueError('Unknown saved search')
+        return {'deleted':key}
