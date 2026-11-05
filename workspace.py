@@ -80,3 +80,17 @@ class Workspace:
         with self.connect() as db:
             rows=db.execute('SELECT version,created,provenance FROM collection_versions WHERE collection_id=? ORDER BY version DESC',(key,)).fetchall()
         return [dict(row) for row in rows]
+
+    def collections(self,include_archived=False):
+        if type(include_archived) is not bool:raise ValueError('include_archived must be boolean')
+        with self.connect() as db:
+            rows=db.execute('SELECT c.*,MAX(v.version) AS version FROM collections c JOIN collection_versions v ON v.collection_id=c.id WHERE (?=1 OR c.archived=0) GROUP BY c.id ORDER BY c.created DESC,c.id',(include_archived,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def archive_collection(self,key,archived=True):
+        key=text(key,'Collection ID')
+        if type(archived) is not bool:raise ValueError('archived must be boolean')
+        with self.connect() as db:
+            if not db.execute('UPDATE collections SET archived=? WHERE id=?',(archived,key)).rowcount:
+                raise ValueError('Unknown collection')
+        return self.collection(key)
