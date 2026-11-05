@@ -1,5 +1,9 @@
 /* Persistent local workspace controls; all user text is rendered as text nodes. */
 const workspacePanel=el('section',undefined,'panel workspace-panel');workspacePanel.id='workspace';
+const sortSelect=el('select');sortSelect.id='sort';
+for(const [value,label] of [['total','Known lease expense'],['monthly','Recurring monthly cost'],['effective','Effective monthly expense'],['completeness','Price completeness']]){const opt=el('option',label);opt.value=value;sortSelect.append(opt);}
+document.querySelector('.toolbar').append(field('Rank homes by',sortSelect));sortSelect.onchange=evaluate;
+const monthsInput=el('input');monthsInput.id='months';monthsInput.type='number';monthsInput.min='1';monthsInput.max='60';monthsInput.step='1';monthsInput.value=$('months').value;$('months').replaceWith(monthsInput);monthsInput.onchange=evaluate;
 workspacePanel.append(el('div','LOCAL WORKSPACE','eyebrow'),el('h2','Keep your research together.'),el('p','Collections and saved searches stay in this browser’s local server database. No account or cloud sync.','muted'));
 const workspaceStatus=el('p','','workspace-status');workspaceStatus.setAttribute('role','status');workspaceStatus.setAttribute('aria-live','polite');
 workspacePanel.append(workspaceStatus);document.querySelector('.bottom-grid').before(workspacePanel);
@@ -31,7 +35,7 @@ const searchName=input('e.g. Shared home under $1,200');searchArea.append(field(
 searchArea.append(action('Save current filters',async()=>{await api('/api/searches/save',{name:searchName.value,preferences:prefs()});await refreshSearches();message('Saved current filters. Listing data is stored separately in collections.');},true));
 const searchList=el('div',undefined,'workspace-list');searchArea.append(searchList);
 function applyPreferences(value){
- const defaults={budget:'2500',kind:'all',months:12,optional:false,known_only:false};const p={...defaults,...value};
+ const defaults={budget:'2500',kind:'all',months:12,optional:false,known_only:false,sort:'total'};const p={...defaults,...value};$('sort').value=p.sort;
  $('budget').value=p.budget;$('kind').value=p.kind;$('months').value=p.months;$('optional').checked=p.optional;$('known').checked=p.known_only;
  return evaluate();
 }

@@ -3,7 +3,7 @@ const usd = value => new Intl.NumberFormat('en-US',{style:'currency',currency:'U
 let samples=[], imported=null, results=[], selected=new Set(), bookingKey=null, suggestion=null;
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error || 'Request failed');return data;}
-function prefs(){return {budget:$('budget').value,kind:$('kind').value,months:Number($('months').value),optional:$('optional').checked,known_only:$('known').checked};}
+function prefs(){return {budget:$('budget').value,kind:$('kind').value,months:Number($('months').value),optional:$('optional').checked,known_only:$('known').checked,sort:$('sort')?.value||'total'};}
 let evaluationSequence=0;
 async function evaluate(){
  const sequence=++evaluationSequence;$('cards').setAttribute('aria-busy','true');$('notice').textContent='Evaluating known costs…';
