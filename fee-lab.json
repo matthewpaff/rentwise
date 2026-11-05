@@ -1,0 +1,16 @@
+[
+  {
+    "id": "fee-lab-loft", "name": "The fee-lab loft", "area": "Illustrative neighborhood", "kind": "whole", "currency": "USD",
+    "source": "FEE-LAB-001 · synthetic scenario authored 2026-11-05", "observed_at": "2026-11-05",
+    "excerpt": "Fictional loft: $1,500 monthly rent, $60 required water service, optional parking $90 monthly. One-time nonrefundable admin fee $125. Refundable security deposit $800, subject to hypothetical lease terms. $300 concession after completing a lease of at least 12 months. No additional required charges in this authored scenario.",
+    "price_completeness": "complete",
+    "fees": [
+      {"id": "rent", "label": "Base rent", "amount": "1500.00", "cadence": "monthly", "required": true, "source": "FEE-LAB-001"},
+      {"id": "water", "label": "Water service", "amount": "60.00", "cadence": "monthly", "required": true, "source": "FEE-LAB-001"},
+      {"id": "parking", "label": "Parking", "amount": "90.00", "cadence": "monthly", "required": false, "source": "FEE-LAB-001"},
+      {"id": "admin", "label": "Administration", "amount": "125.00", "cadence": "once", "required": true, "source": "FEE-LAB-001"},
+      {"id": "deposit", "label": "Security deposit", "amount": "800.00", "cadence": "once", "required": true, "refundable": true, "source": "FEE-LAB-001"}
+    ],
+    "credits": [{"label": "12-month completion credit", "amount": "300.00", "minimum_months": 12, "source": "FEE-LAB-001"}]
+  }
+]

@@ -50,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, {'status':'ok','sandbox':True,'model_enabled':model is not None})
         if path == '/api/listings':
             return self.respond(200, {'listings': LISTINGS, 'sample': True})
+        if path == '/api/fee-lab':
+            return self.respond(200,{'listings':json.loads((ROOT/'fee-lab.json').read_text(encoding='utf-8')),'sample':True})
         if path == '/api/collections':
             return self.respond(200, {'collections':local_workspace().collections(True)})
         if path == '/api/searches':

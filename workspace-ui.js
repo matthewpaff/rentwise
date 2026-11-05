@@ -13,6 +13,7 @@ collectionArea.append(el('h3','Listing collections'));searchArea.append(el('h3',
 const collectionName=input('e.g. November shortlist');const provenance=input('Where did these inputs come from?');
 collectionArea.append(field('Collection name',collectionName),field('Import / revision provenance',provenance));
 let activeCollection=null;
+collectionArea.append(action('Explore deposit & credit sample',async()=>{const response=await fetch('/api/fee-lab');const data=await response.json();if(!response.ok)throw new Error(data.error);imported=data.listings;activeCollection=null;$('json').value=JSON.stringify(imported,null,2);selected.clear();await applyPreferences({budget:'2500',months:12});message('Loaded a synthetic fee-lab scenario. It is not bookable. Inspect the card breakdown or save a collection.');}));
 const collectionButtons=el('div',undefined,'button-row');collectionArea.append(collectionButtons);
 const collectionList=el('div',undefined,'workspace-list');collectionArea.append(collectionList);
 collectionButtons.append(action('Save as new collection',async()=>{const data=await api('/api/collections/create',{name:collectionName.value,provenance:provenance.value,listings:JSON.parse($('json').value)});activeCollection=data;await refreshCollections();message('Saved collection version 1. Original source dates were retained.');},true));
