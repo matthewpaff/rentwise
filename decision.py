@@ -6,7 +6,7 @@ from workspace import corpus
 from model_adapter import validate_preferences
 
 def evaluate(listings,preferences=None,today=None):
-    preferences=validate_preferences(preferences or {})
+    preferences=validate_preferences({} if preferences is None else preferences)
     listings=corpus(listings)
     today=today or date.today()
     budget=money(preferences.get('budget','1000000'))
