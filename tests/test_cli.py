@@ -3,6 +3,8 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 from cli import main
 
@@ -34,3 +36,13 @@ class CliTests(unittest.TestCase):
             path=Path(tmp)/'large.json';path.write_text(' '*100001)
             self.assertEqual(self.run_cli(['--input',str(path)])[0],2)
             self.assertEqual(self.run_cli(['--input',str(path.with_name('missing.json'))])[0],2)
+
+    def test_real_process_redirects_unicode_output_as_utf8(self):
+        root=Path(__file__).resolve().parents[1]
+        data=json.loads((root/'data.json').read_text())
+        data[0]['name']='Café 桜 – sample'
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'input.json';path.write_text(json.dumps(data,ensure_ascii=False),encoding='utf-8')
+            result=subprocess.run([sys.executable,str(root/'cli.py'),'--input',str(path)],capture_output=True,check=True)
+        payload=json.loads(result.stdout.decode('utf-8'))
+        self.assertTrue(any(x['name']=='Café 桜 – sample' for x in payload['listings']))
